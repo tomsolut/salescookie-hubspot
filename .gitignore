@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Data files
+*.csv
+*.xlsx
+*.xls
+
+# Reports
+reports/
+reports_*/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+all_salescookie_credits.csv
+scraped_data/
+manual_data/
+test_data/
+
+# Temporary files
+*.tmp
+*.bak
+.~*
