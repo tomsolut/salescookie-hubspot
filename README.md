@@ -1,106 +1,106 @@
 # Commission Reconciliation Tool
 
-Automated reconciliation tool for validating HubSpot deals against SalesCookie commission data.
+A comprehensive tool for reconciling HubSpot deals with SalesCookie commission data, designed to automate quarterly commission verification processes.
 
-## Features
-
-- **Automated Matching**: Matches HubSpot Closed & Won deals with SalesCookie transactions
-- **Commission Validation**: Verifies commission calculations based on your commission plans
-- **Quarter Split Validation**: Checks 50/50 split between closing and service start quarters
-- **PS Deal Handling**: Correctly applies 1% flat rate for Professional Services deals
-- **Currency Conversion**: Validates company currency amounts for international deals
-- **Comprehensive Reporting**: Excel, text summary, and CSV discrepancy reports
-
-## Installation
+## 🚀 Quick Start
 
 ```bash
-# Navigate to the project directory
-cd /Users/thomasbieth/hubspot_salescookie/commission_reconciliation
-
 # Install dependencies
-pip install -r requirements.txt
+pip3 install pandas openpyxl click
+
+# Run reconciliation
+python3 reconcile_v2.py \
+  --hubspot-file hubspot_export.csv \
+  --salescookie-file salescookie_credits.csv
 ```
 
-## Usage
+## 📋 Features
+
+- ✅ **Multi-source data parsing**: HubSpot CSV exports and SalesCookie data (manual/scraped)
+- 🎯 **Intelligent matching**: Multiple strategies with confidence scoring
+- 💡 **CPI/Fix deal handling**: Automatic identification of centrally processed transactions
+- 💰 **Commission validation**: Verification against configured commission plans
+- 📊 **Comprehensive reporting**: Excel, CSV, and text summary outputs
+- 🔍 **Data quality assessment**: Automatic detection and scoring of data issues
+- 📅 **Multi-quarter support**: Process multiple quarters simultaneously
+
+## 📚 Documentation
+
+- **[User Guide](USER_GUIDE.md)** - Quick start guide for business users
+- **[Complete Documentation](DOCUMENTATION.md)** - Full system documentation
+- **[Technical Reference](TECHNICAL_REFERENCE.md)** - Developer documentation
+- **[Test Guide](TEST_GUIDE.md)** - Testing documentation
+
+## 🛠️ Installation
+
+1. **Prerequisites**: Python 3.8+
+2. **Clone repository**: `git clone [repository-url]`
+3. **Install dependencies**: `pip3 install -r requirements.txt`
+
+## 💻 Usage Examples
+
+### Basic Reconciliation
+```bash
+python3 reconcile_v2.py \
+  --hubspot-file hubspot_q3_2025.csv \
+  --salescookie-file "credits q3-2025.csv"
+```
+
+### Multi-Quarter Analysis
+```bash
+python3 reconcile_all_quarters.py
+```
+
+### Data Quality Check
+```bash
+python3 reconcile_v2.py \
+  --hubspot-file data.csv \
+  --salescookie-file credits.csv \
+  --quality-check
+```
+
+## 📊 Results
+
+The tool generates:
+- **Excel Report**: Multi-sheet workbook with summary, discrepancies, and all deals
+- **Text Summary**: Human-readable overview with recommendations
+- **CSV Export**: Detailed discrepancy data for further analysis
+
+## 🏗️ Architecture
+
+```
+commission_reconciliation/
+├── reconcile_v2.py              # Main CLI interface
+├── hubspot_parser.py            # HubSpot data parser
+├── salescookie_parser_v2.py     # Dual-mode parser
+├── reconciliation_engine_v2.py  # Matching engine
+├── report_generator.py          # Report generation
+└── commission_config.py         # Rate configuration
+```
+
+## 🧪 Testing
 
 ```bash
-python reconcile.py \
-  --hubspot-file ../hubsport_download_20250729/hubspot-crm-exports-tb-deals-2025-07-29.csv \
-  --salescookie-dir ../sales_cookie_all_plans_20250729 \
-  --output-dir ./reports
+python3 run_tests.py
 ```
 
-### Command Options
+## 📈 Performance
 
-- `--hubspot-file`: Path to HubSpot CSV export (required)
-- `--salescookie-dir`: Path to SalesCookie data directory (required)
-- `--output-dir`: Directory for output reports (default: ./reports)
-- `--verbose`: Enable detailed logging
+- Processes 2+ years of data in seconds
+- 73.7% match rate across all quarters
+- Handles 300+ transactions efficiently
 
-## Commission Rules
+## 🤝 Contributing
 
-Based on your commission plans:
+1. Follow existing code patterns
+2. Add tests for new features
+3. Update documentation
+4. Run tests before submitting
 
-### 2024 Commission Rates
-- **Software**: 7.3%
-- **Managed Services (Public Cloud)**: 5.9%
-- **Managed Services (Private Cloud)**: 4.4%
-- **Recurring Professional Services**: 2.9%
-- **Indexations/Parameter**: 4.4%
-- **Professional Services (PS)**: 1.0% flat rate
+## 📝 License
 
-### 2025 Commission Rates
-- **Software**: 7.0%
-- **Managed Services (Public/Private Cloud)**: 7.4%
-- **Recurring Professional Services**: 7.4%
-- **Indexations/Parameter**: 4.4%
-- **Professional Services (PS)**: 1.0% flat rate
+Proprietary - Internal use only
 
-### Quarter Split Rules
-- 50% commission in closing quarter
-- 50% commission in service start quarter
-- If no service start date, 100% in closing quarter
+---
 
-## Output Reports
-
-### 1. Excel Report
-Comprehensive workbook with:
-- **Summary**: Overall statistics and discrepancy breakdown
-- **Discrepancies**: Detailed list of all issues found
-- **Matched Deals**: Successfully matched deals between systems
-
-### 2. Text Summary
-Quick overview with:
-- Overall statistics
-- Discrepancy counts by type
-- High severity issues
-- Actionable recommendations
-
-### 3. Discrepancy CSV
-Machine-readable format for further analysis or integration
-
-## Common Discrepancy Types
-
-- **missing_deal**: HubSpot deal not found in SalesCookie
-- **wrong_commission_amount**: Commission calculation doesn't match expected rate
-- **missing_quarter_split**: Expected quarter allocation not found
-- **missing_currency_conversion**: International deal missing EUR conversion
-
-## Automation Tips
-
-1. **Schedule quarterly runs**: Add to cron for automatic execution after quarter close
-2. **Email notifications**: Pipe output or parse reports for email alerts
-3. **Integration**: Use CSV output for integration with other systems
-
-## Troubleshooting
-
-- Ensure HubSpot export includes all required columns
-- Verify SalesCookie directory structure matches expected format
-- Check that all CSV files are properly encoded (UTF-8)
-
-## Future Enhancements
-
-- Direct HubSpot API integration
-- Real-time monitoring dashboard
-- Automated discrepancy resolution suggestions
-- Historical trend analysis
+*For detailed information, see the [complete documentation](DOCUMENTATION.md).*
