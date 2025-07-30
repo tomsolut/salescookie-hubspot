@@ -46,9 +46,9 @@ class CommissionConfig:
             commission_rates={
                 'software': 0.073,  # 7.3%
                 'managed_services_public': 0.059,  # 5.9%
-                'managed_services_private': 0.044,  # 4.4%
+                'managed_services_private': 0.073,  # 7.3% (corrected from 4.4%)
                 'recurring_professional_services': 0.029,  # 2.9%
-                'indexations_parameter': 0.044,  # 4.4%
+                'indexations_parameter': 0.088,  # 8.8% (corrected from 4.4%)
                 'churn': 0.044,  # 4.4%
             },
             quota_factors={
@@ -68,9 +68,9 @@ class CommissionConfig:
             commission_rates={
                 'software': 0.07,  # 7%
                 'managed_services_public': 0.074,  # 7.4%
-                'managed_services_private': 0.074,  # 7.4%
-                'recurring_professional_services': 0.074,  # 7.4%
-                'indexations_parameter': 0.044,  # 4.4%
+                'managed_services_private': 0.084,  # 8.4% (corrected from 7.4%)
+                'recurring_professional_services': 0.031,  # 3.1% (corrected from 7.4%)
+                'indexations_parameter': 0.093,  # 9.3% (corrected from 4.4%)
                 'churn': 0.044,  # 4.4%
             },
             quota_factors={

@@ -329,8 +329,8 @@ class ReconciliationEngineV2:
             return 'software'
             
     def _identify_centrally_processed_transactions(self):
-        """Identify CPI and Fix Increase deals that are centrally processed"""
-        logger.info("Identifying centrally processed transactions...")
+        """Identify and auto-process CPI and FP Increase deals that are centrally processed"""
+        logger.info("Identifying and auto-processing centrally managed transactions...")
         
         centrally_processed_count = 0
         remaining_transactions = []
@@ -339,17 +339,42 @@ class ReconciliationEngineV2:
             deal_name = transaction.get('deal_name', '').lower()
             
             # Check if this is a centrally processed deal
-            if any(indicator in deal_name for indicator in ['cpi increase', 'fix increase', 'indexation']):
+            # CPI Increase, FP Increase, and Fixed Price Increase deals are handled centrally, not in HubSpot
+            if any(indicator in deal_name for indicator in ['cpi increase', 'fp increase', 'fixed price increase', 'indexation']):
+                # Auto-process these transactions
+                transaction['auto_processed'] = True
+                transaction['processing_type'] = 'centrally_managed'
+                transaction['processing_note'] = 'Processed by SalesOps team - not in HubSpot'
+                
                 self.centrally_processed_transactions.append(transaction)
+                
+                # Create an auto-match for reporting purposes
+                auto_match = MatchResult(
+                    hubspot_id=f"CENTRAL_{transaction.get('salescookie_id', centrally_processed_count)}",
+                    salescookie_id=transaction.get('salescookie_id', ''),
+                    match_type='centrally_processed',
+                    confidence=100.0,
+                    hubspot_deal={
+                        'hubspot_id': f"CENTRAL_{transaction.get('salescookie_id', centrally_processed_count)}",
+                        'deal_name': transaction.get('deal_name'),
+                        'close_date': transaction.get('close_date'),
+                        'commission_amount': 0,  # No HubSpot amount
+                        'company_name': transaction.get('company_name', ''),
+                        'is_centrally_processed': True
+                    },
+                    salescookie_transactions=[transaction]
+                )
+                self.matches.append(auto_match)
+                
                 centrally_processed_count += 1
-                logger.debug(f"Marked as centrally processed: {transaction.get('deal_name')}")
+                logger.debug(f"Auto-processed centrally managed deal: {transaction.get('deal_name')}")
             else:
                 remaining_transactions.append(transaction)
         
         # Update the transactions list to exclude centrally processed ones
         self.salescookie_transactions = remaining_transactions
         
-        logger.info(f"Identified {centrally_processed_count} centrally processed transactions")
+        logger.info(f"Auto-processed {centrally_processed_count} centrally managed transactions")
         logger.info(f"Remaining transactions for matching: {len(self.salescookie_transactions)}")
     
     def _generate_result(self, data_quality_score: float) -> ReconciliationResult:
@@ -405,6 +430,7 @@ class ReconciliationEngineV2:
             'total_impact': sum(d.impact_eur for d in self.discrepancies),
             'average_match_confidence': sum(m.confidence for m in self.matches) / len(self.matches) if self.matches else 0,
             'data_quality_score': data_quality_score,
+            'match_rate': (len(self.matches) / len(self.hubspot_deals) * 100) if len(self.hubspot_deals) > 0 else 0,
         }
         
         return ReconciliationResult(

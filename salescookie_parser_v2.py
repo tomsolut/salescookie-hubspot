@@ -18,6 +18,12 @@ class DataSource(Enum):
     SCRAPED = "scraped"
     UNKNOWN = "unknown"
 
+class TransactionType(Enum):
+    REGULAR = "regular"
+    WITHHOLDING = "withholding"
+    FORECAST = "forecast"
+    SPLIT = "split"
+
 @dataclass
 class DataQualityReport:
     """Data quality assessment for loaded data"""
@@ -53,6 +59,15 @@ class SalesCookieParserV2:
         'split': 'Split',
         'types_of_acv': 'Types of ACV',
         'product_name': 'Product Name',
+        # Withholding and forecast fields
+        'est_commission': 'Est. Commission',
+        'est_commission_currency': 'Est. Commission Currency',
+        'est_commission_rate': 'Est. Commission Rate',
+        'est_commission_details': 'Est. Commission Details',
+        # Kicker fields
+        'early_bird_kicker': 'Early Bird Kicker',
+        'performance_kicker': 'Performance Kicker',
+        'campaign_kicker': 'Campaign Kicker',
     }
     
     def __init__(self, base_path: str = None):
@@ -60,6 +75,35 @@ class SalesCookieParserV2:
         self.transactions = []
         self.data_quality_reports = {}
         
+    def detect_transaction_type(self, df: pd.DataFrame, file_path: str) -> TransactionType:
+        """Detect the type of transaction based on file name and content"""
+        filename = os.path.basename(file_path).lower()
+        
+        # Check filename patterns
+        if 'withholding' in filename:
+            return TransactionType.WITHHOLDING
+        elif 'estimated' in filename or 'forecast' in filename:
+            return TransactionType.FORECAST
+        elif 'split' in filename:
+            return TransactionType.SPLIT
+            
+        # Check content patterns
+        if 'Est. Commission' in df.columns and 'Commission' in df.columns:
+            # If both exist and Commission < Est. Commission, it's withholding
+            if len(df) > 0:
+                sample = df.iloc[0]
+                if pd.notna(sample.get('Commission')) and pd.notna(sample.get('Est. Commission')):
+                    comm = self._parse_amount(sample.get('Commission'))
+                    est_comm = self._parse_amount(sample.get('Est. Commission'))
+                    if comm > 0 and est_comm > 0 and comm < est_comm * 0.6:
+                        return TransactionType.WITHHOLDING
+                        
+        # Note: Performance Kicker is just a multiplier (e.g., 1.10 = 110% of base commission)
+        # Only files explicitly named as forecast/estimated should be marked as FORECAST
+        # Kicker columns alone do not indicate forecast transactions
+            
+        return TransactionType.REGULAR
+    
     def detect_data_source(self, df: pd.DataFrame, file_path: str) -> DataSource:
         """Detect if data is from manual export or scraped"""
         # Check for key indicators
@@ -149,15 +193,19 @@ class SalesCookieParserV2:
                 source = self.detect_data_source(df, file_path)
                 logger.info(f"Detected data source: {source.value}")
                 
+            # Detect transaction type
+            transaction_type = self.detect_transaction_type(df, file_path)
+            logger.info(f"Detected transaction type: {transaction_type.value}")
+                
             # Assess data quality
             quality_report = self.assess_data_quality(df, source)
             logger.info(f"Data quality score: {quality_report.quality_score:.1f}/100")
             
             # Parse based on source type
             if source == DataSource.MANUAL:
-                transactions = self._parse_manual_format(df)
+                transactions = self._parse_manual_format(df, transaction_type)
             else:
-                transactions = self._parse_scraped_format(df)
+                transactions = self._parse_scraped_format(df, transaction_type)
                 
             return transactions, quality_report
             
@@ -185,7 +233,7 @@ class SalesCookieParserV2:
         logger.error(f"Failed to read {file_path} with any encoding/separator combination")
         return None
         
-    def _parse_manual_format(self, df: pd.DataFrame) -> List[Dict]:
+    def _parse_manual_format(self, df: pd.DataFrame, transaction_type: TransactionType = TransactionType.REGULAR) -> List[Dict]:
         """Parse manual export format (high quality)"""
         transactions = []
         
@@ -218,8 +266,46 @@ class SalesCookieParserV2:
                     },
                     'tcv_professional_services': self._parse_amount(row.get('TCV (Professional Services)', 0)),
                     'is_ps_deal': self._is_ps_deal(row),
-                    'data_source': 'manual'
+                    'data_source': 'manual',
+                    'transaction_type': transaction_type.value,
                 }
+                
+                # Override transaction type if Transaction_Type column exists (from combined file)
+                if 'Transaction_Type' in row and pd.notna(row['Transaction_Type']):
+                    tx_type_str = str(row['Transaction_Type']).lower()
+                    if tx_type_str == 'withholding':
+                        transaction['transaction_type'] = 'withholding'
+                    elif tx_type_str == 'forecast':
+                        transaction['transaction_type'] = 'forecast'
+                    elif tx_type_str == 'split':
+                        transaction['transaction_type'] = 'split'
+                    else:
+                        transaction['transaction_type'] = 'regular'
+                
+                # Add withholding/forecast specific fields
+                if transaction.get('transaction_type') in ['withholding', 'forecast'] or transaction_type in [TransactionType.WITHHOLDING, TransactionType.FORECAST]:
+                    transaction['est_commission'] = self._parse_amount(row.get('Est. Commission', 0))
+                    transaction['est_commission_currency'] = row.get('Est. Commission Currency', 'EUR')
+                    transaction['est_commission_rate'] = self._parse_rate(row.get('Est. Commission Rate'))
+                    transaction['est_commission_details'] = row.get('Est. Commission Details', '')
+                    
+                    # Also check for withholding fields from combined file
+                    if 'Withheld_Amount' in row and pd.notna(row['Withheld_Amount']):
+                        transaction['withheld_amount'] = float(row['Withheld_Amount'])
+                    if 'Full_Commission' in row and pd.notna(row['Full_Commission']):
+                        transaction['full_commission'] = float(row['Full_Commission'])
+                    
+                    # Calculate withholding ratio if applicable
+                    if (transaction.get('transaction_type') == 'withholding' or transaction_type == TransactionType.WITHHOLDING) and transaction.get('est_commission', 0) > 0:
+                        transaction['withholding_ratio'] = transaction['commission_amount'] / transaction['est_commission']
+                    else:
+                        transaction['withholding_ratio'] = 1.0
+                        
+                # Add kicker fields for forecast transactions
+                if transaction.get('transaction_type') == 'forecast' or transaction_type == TransactionType.FORECAST:
+                    transaction['early_bird_kicker'] = self._parse_amount(row.get('Early Bird Kicker', 0))
+                    transaction['performance_kicker'] = self._parse_amount(row.get('Performance Kicker', 0))
+                    transaction['campaign_kicker'] = self._parse_amount(row.get('Campaign Kicker', 0))
                 
                 # Extract company info
                 transaction['company_id'], transaction['company_name'] = self._extract_customer_info(transaction['customer'])
@@ -231,7 +317,7 @@ class SalesCookieParserV2:
                 
         return transactions
         
-    def _parse_scraped_format(self, df: pd.DataFrame) -> List[Dict]:
+    def _parse_scraped_format(self, df: pd.DataFrame, transaction_type: TransactionType = TransactionType.REGULAR) -> List[Dict]:
         """Parse scraped format (lower quality, may have issues)"""
         transactions = []
         
@@ -257,6 +343,7 @@ class SalesCookieParserV2:
             try:
                 transaction = self._parse_scraped_row(row)
                 transaction['data_source'] = 'scraped'
+                transaction['transaction_type'] = transaction_type.value
                 transactions.append(transaction)
             except Exception as e:
                 logger.warning(f"Error processing scraped row {idx}: {str(e)}")

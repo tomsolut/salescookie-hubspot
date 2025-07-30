@@ -1,4 +1,4 @@
-# Commission Reconciliation Tool - Complete Documentation
+# Commission Reconciliation Tool v3.0 - Complete Documentation
 
 ## Table of Contents
 
@@ -9,7 +9,7 @@
 5. [Data Formats](#data-formats)
 6. [Business Logic](#business-logic)
 7. [Technical Architecture](#technical-architecture)
-8. [API Reference](#api-reference)
+8. [Transaction Types](#transaction-types)
 9. [Troubleshooting](#troubleshooting)
 10. [Best Practices](#best-practices)
 
@@ -20,530 +20,307 @@ The Commission Reconciliation Tool automates the quarterly process of verifying 
 ### Key Benefits
 
 - **Time Savings**: Reduces manual reconciliation from hours to minutes
-- **Accuracy**: Automated calculation verification reduces human error
-- **Visibility**: Comprehensive reports highlight discrepancies immediately
-- **Flexibility**: Supports multiple data sources and formats
+- **Accuracy**: Automated calculation verification using SalesCookie rates
+- **Visibility**: Comprehensive reports with discrepancy percentages
+- **Flexibility**: Supports multiple transaction types and data sources
 
-### Core Features
+### v3.0 Features
 
 - Multi-source data parsing (HubSpot CSV, SalesCookie manual/scraped)
 - Intelligent deal matching with confidence scoring
-- Automatic handling of centrally processed deals (CPI/Fix)
-- Commission validation against yearly plans
-- Comprehensive reporting in multiple formats
-- Data quality assessment and recommendations
+- Automatic handling of centrally processed deals (FP/CPI)
+- Support for withholding, forecast, and split transactions
+- Discrepancy percentage calculations with color coding
+- Enhanced reporting with transaction type breakdowns
 
 ## Quick Start
 
-### 1. Basic Reconciliation
+### 1. Combine SalesCookie Files
 
 ```bash
-# Reconcile Q3 2025 data
-python3 reconcile_v2.py \
-  --hubspot-file hubspot_export.csv \
-  --salescookie-file "credits q3-2025.csv"
+# First, combine all SalesCookie CSV files
+python combine_salescookie_files.py
 ```
 
-### 2. Multi-Quarter Analysis
+This will merge:
+- Regular credit files (q1-q4 for each year)
+- Withholding files (50% paid/50% withheld)
+- Split credit files (deals across quarters)
+- Forecast/estimated files
+
+### 2. Run Reconciliation
 
 ```bash
-# Analyze all available quarters
-python3 reconcile_all_quarters.py
-```
-
-### 3. Data Quality Check
-
-```bash
-# Check data quality without full reconciliation
-python3 reconcile_v2.py \
-  --hubspot-file hubspot_export.csv \
-  --salescookie-file credits.csv \
-  --quality-check
+# Use v3 for enhanced features
+python reconcile_v3.py \
+  --hubspot-file ../salescookie_manual/tb-deals.csv \
+  --salescookie-file all_salescookie_credits.csv \
+  --output-dir reports_v3
 ```
 
 ## Installation
 
-### System Requirements
+### Prerequisites
 
 - Python 3.8 or higher
-- 100MB free disk space
-- MacOS, Linux, or Windows
+- pip package manager
+- Virtual environment (recommended)
 
-### Step-by-Step Installation
+### Setup Steps
 
-1. **Clone or download the repository**
-   ```bash
-   git clone [repository-url]
-   cd commission_reconciliation
-   ```
+```bash
+# 1. Clone the repository
+git clone [repository-url]
+cd commission_reconciliation
 
-2. **Create virtual environment**
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+# 2. Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-3. **Install dependencies**
-   ```bash
-   pip install pandas openpyxl click
-   ```
+# 3. Install dependencies
+pip install -r requirements.txt
+```
 
-4. **Verify installation**
-   ```bash
-   python3 reconcile_v2.py --help
-   ```
+### Dependencies
+
+- `pandas>=1.5.0` - Data manipulation
+- `openpyxl>=3.0.0` - Excel file generation
+- `click>=8.0.0` - Command-line interface
 
 ## Usage Guide
 
-### Command Line Interface
+### Command Line Options
 
-#### Basic Syntax
+#### reconcile_v3.py
+
 ```bash
-python3 reconcile_v2.py [OPTIONS]
+python reconcile_v3.py [OPTIONS]
+
+Options:
+  --hubspot-file PATH      Path to HubSpot CSV export file [required]
+  --salescookie-file PATH  Path to combined SalesCookie CSV file [required]
+  --output-dir PATH        Directory for output reports (default: ./reports_v3)
+  --verbose               Enable verbose logging
+  --help                  Show this message and exit
 ```
 
-#### Options
+#### combine_salescookie_files.py
 
-| Option | Description | Required |
-|--------|-------------|----------|
-| `--hubspot-file PATH` | Path to HubSpot CSV export | Yes |
-| `--salescookie-file PATH` | Path to manual SalesCookie export | One of these |
-| `--salescookie-dir PATH` | Directory with scraped SalesCookie files | One of these |
-| `--output-dir PATH` | Directory for output reports | No (default: ./reports) |
-| `--data-source [manual\|scraped\|auto]` | Specify data source type | No (default: auto) |
-| `--quality-check` | Run data quality check only | No |
-| `--verbose` | Enable detailed logging | No |
-
-### Usage Examples
-
-#### Example 1: Quarterly Reconciliation
 ```bash
-python3 reconcile_v2.py \
-  --hubspot-file "../hubspot_exports/q3_2025.csv" \
-  --salescookie-file "../salescookie_manual/credits q3-2025.csv" \
-  --output-dir "./reports/q3_2025"
+python combine_salescookie_files.py
+
+# Automatically processes all files in ../salescookie_manual/
+# Creates: all_salescookie_credits.csv
 ```
 
-#### Example 2: Using Scraped Data
-```bash
-python3 reconcile_v2.py \
-  --hubspot-file hubspot_all_deals.csv \
-  --salescookie-dir "../scraped_data/" \
-  --data-source scraped
-```
+### Output Files
 
-#### Example 3: Historical Analysis
-```bash
-# First, analyze all quarters
-python3 analyze_all_quarters.py
+1. **Excel Report** (`commission_reconciliation_YYYYMMDD_HHMMSS.xlsx`)
+   - Summary sheet with overall statistics
+   - Discrepancies sheet with percentage column
+   - Matched deals sheet with commission details
 
-# Then run comprehensive reconciliation
-python3 reconcile_all_quarters.py
-```
+2. **Text Summary** (`reconciliation_summary_YYYYMMDD_HHMMSS.txt`)
+   - High-level overview
+   - Transaction type breakdown
+   - Top discrepancies
+   - Recommendations
+
+3. **CSV Export** (`discrepancies_YYYYMMDD_HHMMSS.csv`)
+   - Detailed discrepancy data for analysis
 
 ## Data Formats
 
 ### HubSpot Export Format
 
-Export deals from HubSpot with these required fields:
+Required columns:
+- `Deal ID` - Unique identifier
+- `Deal Name` - Full deal name
+- `Close Date` - When deal was closed
+- `Amount in company currency` - Deal value in EUR
+- `Deal Stage` - Must be "Closed Won"
 
-| Field Name | Description | Example |
-|------------|-------------|---------|
-| Record ID | Unique deal identifier | 270402053362 |
-| Deal Name | Full deal name | Software License@Aktia Bank |
-| Deal Stage | Must be "Closed & Won" | Closed & Won |
-| Amount in company currency | Deal amount | 50000 |
-| Close Date | ISO date format | 2025-07-15 |
-| Currency in company currency | Currency code | EUR |
-| Deal Type | Deal classification | New Business |
-| Associated Company Names (Primary) | Company name | Aktia Bank Abp |
-| Types of ACV | Revenue type | Software |
-| Product Name | Product sold | Regnology Regulatory |
-| Weigh. ACV product & MS & TCV advisory | EUR equivalent | 50000 |
+### SalesCookie Format
 
-### SalesCookie Export Format
+The tool handles multiple formats:
 
-Manual export format (recommended):
+#### Regular Credits
+- `Unique ID` - Maps to HubSpot Deal ID
+- `Deal Name` - Deal description
+- `Commission` - Commission amount
+- `Commission Rate` - Percentage rate
+- `ACV (EUR)` - Annual contract value
 
-| Field Name | Description | Example |
-|------------|-------------|---------|
-| Unique ID | HubSpot Record ID | 270402053362 |
-| Deal Name | Full deal name | Software License@Aktia Bank |
-| Customer | ID; Company format | 100123; Aktia Bank Abp |
-| Close Date | Datetime format | 2025-07-15 00:00:00 |
-| Commission | Commission amount | 3650 |
-| Commission Currency | Currency code | EUR |
-| Commission Rate | Rate with % | 7.30% |
-| Deal Type | Deal classification | New Business |
-| ACV (EUR) | Annual contract value | 50000 |
-| Split | Quarter split indicator | Yes/No |
+#### Withholding Transactions
+- `Commission` - 50% paid amount
+- `Est. Commission` - 100% full amount
+- `Withheld_Amount` - Calculated 50% withheld
 
-### Scraped Data Issues
-
-Common problems with scraped data:
-- Truncated deal names ending with "..."
-- Different ID format (e.g., 20351301806 vs 270402053362)
-- Missing customer ID prefix
-- Incomplete field extraction
+#### Split Transactions
+- `Split` - "Yes" indicator
+- Deals divided across multiple quarters
 
 ## Business Logic
 
-### Commission Rate Structure
+### Commission Validation
 
-#### 2024 Commission Plan
+**v3.0 Change**: The system now uses SalesCookie's own commission rates as the source of truth:
+
 ```
-Software: 7.3%
-Managed Services (Public): 5.9%
-Managed Services (Private): 7.3%
-Professional Services (Recurring): 2.9%
-Indexations & Parameter: 8.8%
-PS Deals (Flat): 1%
+Expected Commission = SalesCookie ACV × SalesCookie Rate
 ```
 
-#### 2025 Commission Plan
-```
-Software: 7%
-Managed Services (Public): 7.4%
-Managed Services (Private): 8.4%
-Professional Services (Recurring): 3.1%
-Indexations & Parameter: 9.3%
-PS Deals (Flat): 1%
-```
+No longer uses pre-configured rates from commission_config.py.
 
-### Special Deal Types
+### Centrally Processed Deals
 
-#### CPI/Fix Increase Deals
-- Identified by keywords: "CPI Increase", "Fix Increase", "Indexation"
-- Processed centrally, not through standard HubSpot flow
-- Automatically excluded from missing deal reports
+The following deal types are handled centrally and excluded from matching:
+- **CPI Increase** - Consumer Price Index adjustments
+- **FP Increase** - Fixed Price increases
+- **Fixed Price Increase** - Alternative naming
+- **Indexation** - General price indexation
 
-#### Professional Services (PS) Deals
-- Identified by "PS @" prefix in deal name
-- Flat 1% commission rate regardless of amount
-- May have 50/50 quarter splits between close and service start
+Total identified: **308 transactions** (as of July 2025)
 
 ### Matching Algorithm
 
-The tool uses a confidence-based matching hierarchy:
+1. **Phase 0**: Identify and exclude centrally processed transactions
+2. **Phase 1**: Match by unique ID (100% confidence)
+3. **Phase 2**: Match by name and date (85% confidence)
+4. **Phase 3**: Match by company and date (70% confidence)
+5. **Phase 4**: Match withholding transactions
+6. **Phase 5**: Match split transactions
+7. **Phase 6**: Analyze forecast transactions
 
-```
-1. ID Match (100% confidence)
-   └─ Exact Unique ID match
-   
-2. Name + Date Match (95% confidence)
-   ├─ Exact deal name match
-   └─ Close date within ±1 day
-   
-3. Company + Date Match (80-90% confidence)
-   ├─ Normalized company name
-   ├─ Close date within ±7 days
-   └─ Amount similarity boosts confidence
-```
+### Discrepancy Types
 
-### Quarter Split Logic
+- **missing_deal**: Deal in HubSpot but not in SalesCookie
+- **calculation_error**: Commission amount doesn't match expected
+- **wrong_rate**: Applied rate differs from expected
+- **data_quality**: Issues with data format or completeness
 
-For deals with split commissions:
-- 50% allocated to close quarter
-- 50% allocated to revenue start quarter
-- Applies to multi-quarter service agreements
+### Discrepancy Percentage
+
+New in v3.0 - Color-coded percentages:
+- 🔴 **Red**: >50% variance
+- 🟠 **Orange**: 20-50% variance  
+- ⚫ **Black**: ≤20% variance
 
 ## Technical Architecture
 
-### Component Overview
-
-```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  HubSpot CSV    │────▶│  HubSpot Parser  │────▶│                 │
-└─────────────────┘     └──────────────────┘     │                 │
-                                                  │  Reconciliation │
-┌─────────────────┐     ┌──────────────────┐     │     Engine      │
-│ SalesCookie CSV │────▶│ SalesCookie      │────▶│                 │
-└─────────────────┘     │ Parser V2        │     └────────┬────────┘
-                        └──────────────────┘              │
-                                                          ▼
-                        ┌──────────────────┐     ┌─────────────────┐
-                        │ Report Generator │◀────│  Discrepancies  │
-                        └────────┬─────────┘     └─────────────────┘
-                                 │
-                ┌────────────────┼────────────────┐
-                ▼                ▼                ▼
-         ┌──────────┐     ┌──────────┐    ┌──────────┐
-         │  Excel   │     │   CSV    │    │  Text    │
-         │ Report   │     │ Export   │    │ Summary  │
-         └──────────┘     └──────────┘    └──────────┘
-```
-
 ### Core Components
-
-#### 1. HubSpot Parser (`hubspot_parser.py`)
-- Loads and validates HubSpot CSV exports
-- Filters for Closed & Won deals
-- Normalizes data formats
-- Calculates PS deal indicators
-
-#### 2. SalesCookie Parser V2 (`salescookie_parser_v2.py`)
-- Dual-mode parser (manual/scraped)
-- Automatic data source detection
-- Quality assessment and scoring
-- Handles multiple CSV formats
-
-#### 3. Reconciliation Engine V2 (`reconciliation_engine_v2.py`)
-- Multi-strategy matching algorithm
-- CPI/Fix deal identification
-- Commission validation
-- Discrepancy detection
-
-#### 4. Report Generator (`report_generator.py`)
-- Excel workbook creation
-- CSV discrepancy export
-- Text summary generation
-- Formatted output
-
-### Data Flow
-
-1. **Input Stage**
-   - Load HubSpot deals
-   - Load SalesCookie transactions
-   - Validate data quality
-
-2. **Processing Stage**
-   - Identify centrally processed deals
-   - Execute matching strategies
-   - Validate commissions
-   - Generate discrepancies
-
-3. **Output Stage**
-   - Create summary statistics
-   - Generate detailed reports
-   - Export findings
-
-## API Reference
-
-### HubSpotParser
-
-```python
-class HubSpotParser:
-    def __init__(self, file_path: str)
-    def parse(self) -> List[Dict]
-    def summary(self) -> Dict
-```
-
-#### Usage Example
-```python
-parser = HubSpotParser('hubspot_export.csv')
-deals = parser.parse()
-summary = parser.summary()
-print(f"Found {summary['total_deals']} deals worth €{summary['total_amount']:,.2f}")
-```
-
-### SalesCookieParserV2
-
-```python
-class SalesCookieParserV2:
-    def parse_file(self, file_path: str, source: DataSource = None) -> Tuple[List[Dict], DataQualityReport]
-    def detect_data_source(self, df: pd.DataFrame, file_path: str) -> DataSource
-    def assess_data_quality(self, df: pd.DataFrame, source: DataSource) -> DataQualityReport
-```
-
-#### Usage Example
-```python
-parser = SalesCookieParserV2()
-transactions, quality = parser.parse_file('credits.csv', DataSource.MANUAL)
-print(f"Quality score: {quality.quality_score}/100")
-```
-
-### ReconciliationEngineV2
-
-```python
-class ReconciliationEngineV2:
-    def __init__(self, hubspot_deals: List[Dict], salescookie_transactions: List[Dict])
-    def reconcile(self, data_quality_score: float = 100.0) -> ReconciliationResult
-```
-
-#### Usage Example
-```python
-engine = ReconciliationEngineV2(hubspot_deals, salescookie_transactions)
-results = engine.reconcile(quality.quality_score)
-print(f"Matched {results.summary['matched_deals_count']} deals")
-```
-
-## Troubleshooting
-
-### Common Issues and Solutions
-
-#### 1. Low Match Rate (<50%)
-
-**Symptoms**: Few deals matching between systems
-
-**Possible Causes**:
-- Time period mismatch
-- Incomplete data export
-- Many CPI/Fix deals
-
-**Solutions**:
-```bash
-# Check date ranges in both files
-python3 analyze_q3_2025.py
-
-# Verify CPI deal handling
-python3 reconcile_v2.py --verbose
-```
-
-#### 2. Import Errors
-
-**Symptoms**: "No module named 'pandas'" or similar
-
-**Solution**:
-```bash
-# Ensure virtual environment is activated
-source venv/bin/activate
-pip install pandas openpyxl click
-```
-
-#### 3. CSV Parsing Errors
-
-**Symptoms**: "Error tokenizing data" or encoding errors
-
-**Solutions**:
-- Ensure CSV is saved with UTF-8 encoding
-- Check for special characters
-- Verify delimiter (comma vs semicolon)
-
-#### 4. Commission Discrepancies
-
-**Symptoms**: Matched deals with wrong commission amounts
-
-**Possible Causes**:
-- Quarter splits not considered
-- Wrong year rates applied
-- PS deals not identified
-
-**Debug Steps**:
-```bash
-# Enable verbose mode
-python3 reconcile_v2.py --verbose
-
-# Check specific deal in both systems
-# Review Commission Details field
-```
-
-### Debug Mode
-
-Enable detailed logging:
-```bash
-export PYTHONPATH=.
-python3 -m pdb reconcile_v2.py --hubspot-file data.csv --salescookie-file credits.csv
-```
-
-### Log Analysis
-
-Check logs for:
-- Data quality warnings
-- Matching attempts and failures
-- Commission calculation details
-- CPI deal identification
-
-## Best Practices
-
-### 1. Data Preparation
-
-- **Export Complete Data**: Include all required fields
-- **Use Manual Exports**: Prefer manual SalesCookie exports over scraped
-- **Verify Time Periods**: Ensure matching date ranges
-- **Check Encoding**: Save CSVs with UTF-8 BOM encoding
-
-### 2. Regular Reconciliation
-
-- **Quarterly Schedule**: Run within first week of quarter end
-- **Monthly Checks**: Optional mid-quarter verification
-- **Year-End Review**: Comprehensive annual reconciliation
-
-### 3. Report Review Process
-
-1. **Check Match Rate**: Should be >70% for complete data
-2. **Review High-Impact Discrepancies**: Focus on >€1000 differences
-3. **Verify CPI Deals**: Ensure centrally processed deals are excluded
-4. **Investigate Missing Deals**: Check eligibility and sync status
-
-### 4. Data Quality Monitoring
-
-- **Track Quality Scores**: Manual exports should score 90-100
-- **Monitor Truncation**: Deal names should never end with "..."
-- **Verify ID Formats**: HubSpot IDs should be 12 digits
-- **Check Completeness**: All required fields should be present
-
-### 5. Process Integration
-
-```mermaid
-graph LR
-    A[Export HubSpot Data] --> B[Export SalesCookie Data]
-    B --> C[Run Reconciliation]
-    C --> D[Review Reports]
-    D --> E{Discrepancies?}
-    E -->|Yes| F[Investigate Issues]
-    E -->|No| G[Archive Reports]
-    F --> H[Fix in Source System]
-    H --> B
-```
-
-## Appendix
-
-### A. File Structure
 
 ```
 commission_reconciliation/
-├── reconcile_v2.py              # Main CLI interface
-├── reconcile_all_quarters.py    # Multi-quarter analysis
-├── analyze_q3_2025.py          # Quarter-specific analysis
-├── hubspot_parser.py           # HubSpot data parser
-├── salescookie_parser_v2.py    # SalesCookie parser
-├── reconciliation_engine_v2.py # Matching engine
-├── report_generator.py         # Report generation
-├── commission_config.py        # Rate configuration
-├── tests/                      # Test suite
-│   ├── test_reconciliation.py
-│   └── test_integration.py
-├── reports/                    # Output directory
-└── README.md                   # Quick reference
-
+│
+├── Entry Points
+│   ├── reconcile_v3.py          # Main CLI with enhanced features
+│   └── combine_salescookie_files.py # File merger utility
+│
+├── Data Parsers
+│   ├── hubspot_parser.py        # HubSpot CSV parser
+│   └── salescookie_parser_v2.py # Enhanced multi-format parser
+│
+├── Processing Engine
+│   ├── reconciliation_engine_v3.py # Advanced matching logic
+│   └── reconciliation_engine_v2.py # Base engine (inherited)
+│
+├── Report Generation
+│   ├── report_generator_v3.py   # Enhanced reports with %
+│   └── report_generator.py      # Base report generator
+│
+└── Configuration
+    └── commission_config.py     # Rate config (deprecated)
 ```
 
-### B. Sample Commands
+### Data Flow
 
-```bash
-# Q3 2025 reconciliation
-python3 reconcile_v2.py \
-  --hubspot-file "../hubspot_data/2025_q3.csv" \
-  --salescookie-file "../salescookie_manual/credits q3-2025.csv" \
-  --output-dir "./reports/2025_q3"
+1. **Input**: HubSpot and SalesCookie CSV files
+2. **Parsing**: Extract and normalize data
+3. **Combination**: Merge all SalesCookie sources
+4. **Processing**: Match deals and validate commissions
+5. **Analysis**: Calculate discrepancies and percentages
+6. **Output**: Generate multi-format reports
 
-# Full year analysis
-python3 reconcile_all_quarters.py
+## Transaction Types
 
-# Data quality check
-python3 reconcile_v2.py \
-  --hubspot-file data.csv \
-  --salescookie-file credits.csv \
-  --quality-check
+### Regular Transactions
+- Standard commission entries
+- Direct ACV × Rate calculation
+- Most common type (~130 transactions)
 
-# Verbose debugging
-python3 reconcile_v2.py \
-  --hubspot-file data.csv \
-  --salescookie-file credits.csv \
-  --verbose \
-  --output-dir "./debug_reports"
-```
+### Withholding Transactions
+- CPI increases with 50/50 split
+- Shows both paid and withheld amounts
+- ~135 transactions with €32,917 withheld
 
-### C. Error Codes
+### Forecast Transactions
+- Future quarter projections
+- May include kicker calculations
+- ~86 transactions for planning
 
-| Code | Description | Action |
-|------|-------------|--------|
-| 0 | Success | None |
-| 1 | General error | Check logs |
-| 2 | File not found | Verify file paths |
-| 3 | Invalid data | Check CSV format |
-| 4 | No deals found | Verify filters |
+### Split Transactions
+- Deals divided across quarters
+- Requires special validation logic
+- ~229 transactions identified
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Low Match Rate**
+   - Check if withholding/forecast transactions are for future quarters
+   - Verify HubSpot Deal IDs are complete
+   - Review data quality score in output
+
+2. **#VALUE! Errors in Excel**
+   - Fixed in v3.0 - percentages now calculate correctly
+   - Ensure using latest report_generator_v3.py
+
+3. **Missing Transactions**
+   - Run combine_salescookie_files.py to include all sources
+   - Check for new file formats in salescookie_manual/
+
+4. **FP/CPI Deals Showing as Missing**
+   - These are centrally processed - not an error
+   - Consider removing from HubSpot export
+
+### Data Quality Indicators
+
+- **Quality Score**: 70/100 or higher is good
+- **Centrally Processed**: Should be 300+ transactions
+- **Match Rate**: Expected 60-80% with all transaction types
+
+## Best Practices
+
+### Data Preparation
+
+1. **HubSpot Export**
+   - Filter for Closed Won deals only
+   - Include all required columns
+   - Export in CSV format
+
+2. **SalesCookie Files**
+   - Place all files in salescookie_manual/
+   - Don't modify file names
+   - Run combine script before reconciliation
+
+### Regular Workflow
+
+1. Export fresh data from both systems
+2. Run combine_salescookie_files.py
+3. Run reconciliation with v3
+4. Review discrepancy report
+5. Focus on high-impact discrepancies (>€1000)
+6. Check discrepancy percentages for patterns
+
+### Maintenance
+
+- Keep virtual environment updated
+- Monitor for new transaction types
+- Document any manual adjustments
+- Archive reports quarterly
 
 ---
 
-*Last updated: July 2025*
+*Last updated: July 2025 - Version 3.0*

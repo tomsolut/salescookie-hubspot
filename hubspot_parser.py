@@ -52,7 +52,11 @@ class HubSpotParser:
             for idx, row in closed_won_df.iterrows():
                 deal = self._process_deal(row)
                 if deal:
-                    self.deals.append(deal)
+                    # Skip deals with zero commission amount
+                    if deal.get('commission_amount', 0) > 0:
+                        self.deals.append(deal)
+                    else:
+                        logger.debug(f"Skipping zero-value deal: {deal.get('deal_name', 'Unknown')}")
                     
             logger.info(f"Successfully processed {len(self.deals)} deals")
             return self.deals

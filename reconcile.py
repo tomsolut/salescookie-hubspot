@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from hubspot_parser import HubSpotParser
 from salescookie_parser import SalesCookieParser
-from reconciliation_engine import ReconciliationEngine
+from reconciliation_engine_v2 import ReconciliationEngineV2 as ReconciliationEngine
 from report_generator import ReportGenerator
 
 # Configure logging
@@ -84,24 +84,38 @@ def reconcile(hubspot_file, salescookie_dir, output_dir, verbose):
         # 3. Run reconciliation
         click.echo("\n🔍 Running reconciliation...")
         engine = ReconciliationEngine(hubspot_deals, sc_parser.transactions)
-        results = engine.reconcile()
+        results = engine.reconcile(data_quality_score=100.0)
         
-        summary = results['summary']
-        click.echo(f"  ✓ Matched {summary['matched_deals_count']} deals")
-        click.echo(f"  ⚠️  Found {summary['total_discrepancies']} discrepancies")
+        summary = results.summary
+        click.echo(f"  ✓ Matched {len(results.matches)} deals")
+        click.echo(f"  ⚠️  Found {len(results.discrepancies)} discrepancies")
         
-        if summary['total_discrepancies'] > 0:
-            click.echo(f"  💸 Total impact: €{summary['total_impact']:,.2f}")
+        if len(results.discrepancies) > 0:
+            total_impact = sum(d.impact_eur for d in results.discrepancies)
+            click.echo(f"  💸 Total impact: €{total_impact:,.2f}")
             
             # Show discrepancy breakdown
+            disc_by_type = {}
+            for disc in results.discrepancies:
+                if disc.discrepancy_type not in disc_by_type:
+                    disc_by_type[disc.discrepancy_type] = {'count': 0, 'impact': 0.0}
+                disc_by_type[disc.discrepancy_type]['count'] += 1
+                disc_by_type[disc.discrepancy_type]['impact'] += disc.impact_eur
+            
             click.echo("\n  Discrepancies by type:")
-            for disc_type, data in summary['discrepancies_by_type'].items():
+            for disc_type, data in disc_by_type.items():
                 click.echo(f"    - {disc_type.replace('_', ' ').title()}: {data['count']} (€{data['impact']:,.2f})")
                 
         # 4. Generate reports
         click.echo("\n📄 Generating reports...")
         generator = ReportGenerator(output_dir)
-        report_paths = generator.generate_reports(results)
+        # Convert to old format for report generator
+        results_dict = {
+            'summary': summary,
+            'discrepancies': results.discrepancies,
+            'matched_deals': results.matches,
+        }
+        report_paths = generator.generate_reports(results_dict)
         
         click.echo("  ✓ Reports generated:")
         click.echo(f"    - Excel: {report_paths['excel']}")
@@ -111,19 +125,19 @@ def reconcile(hubspot_file, salescookie_dir, output_dir, verbose):
         # 5. Summary and recommendations
         click.echo("\n✨ Reconciliation Complete!")
         
-        if summary['total_discrepancies'] > 0:
+        if len(results.discrepancies) > 0:
             click.echo("\n⚡ Top recommendations:")
             
-            if 'missing_deal' in summary['discrepancies_by_type']:
+            if 'missing_deal' in disc_by_type:
                 click.echo("  1. Check SalesCookie sync - some Closed & Won deals are missing")
                 
-            if 'wrong_commission_amount' in summary['discrepancies_by_type']:
+            if 'wrong_commission_amount' in disc_by_type:
                 click.echo("  2. Review commission rates - some calculations don't match expected rates")
                 
-            if 'missing_quarter_split' in summary['discrepancies_by_type']:
+            if 'missing_quarter_split' in disc_by_type:
                 click.echo("  3. Verify quarter splits - some deals missing 50/50 allocation")
                 
-            if 'missing_currency_conversion' in summary['discrepancies_by_type']:
+            if 'missing_currency_conversion' in disc_by_type:
                 click.echo("  4. Check currency conversions - ensure company currency is recorded")
         else:
             click.echo("\n✅ All commissions appear to be correctly calculated and recorded!")

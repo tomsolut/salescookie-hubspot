@@ -101,6 +101,35 @@ class ReportGenerator:
                 ws[f'C{row}'].alignment = Alignment(horizontal='right')
             row += 1
             
+        # Centrally Processed Summary (if available)
+        if 'centrally_processed' in summary:
+            row += 2
+            ws[f'A{row}'] = "Centrally Processed Transactions"
+            ws[f'A{row}'].font = Font(bold=True, size=12)
+            
+            row += 2
+            cp_data = summary['centrally_processed']
+            cp_stats = [
+                ("Total Centrally Processed", cp_data['count']),
+                ("Total Commission", f"€{cp_data['total_commission']:,.2f}"),
+                ("CPI Increase", cp_data['types']['cpi_increase']),
+                ("FP Increase", cp_data['types']['fp_increase']),
+                ("Fixed Price Increase", cp_data['types']['fixed_price_increase']),
+                ("Indexation", cp_data['types']['indexation']),
+            ]
+            
+            for label, value in cp_stats:
+                ws[f'A{row}'] = label
+                ws[f'C{row}'] = value
+                if isinstance(value, str) and '€' in value:
+                    ws[f'C{row}'].alignment = Alignment(horizontal='right')
+                row += 1
+            
+            row += 1
+            ws[f'A{row}'] = cp_data['note']
+            ws[f'A{row}'].font = Font(italic=True, size=10)
+            ws.merge_cells(f'A{row}:D{row}')
+        
         # Discrepancies by type
         row += 2
         ws[f'A{row}'] = "Discrepancies by Type"
@@ -131,7 +160,7 @@ class ReportGenerator:
         # Headers
         headers = [
             "Deal ID", "Deal Name", "Type", "Expected", "Actual", 
-            "Impact (EUR)", "Severity", "Details"
+            "Impact (EUR)", "Severity", "Details", "Discrepancy %"
         ]
         
         for col, header in enumerate(headers, 1):
@@ -141,20 +170,55 @@ class ReportGenerator:
             
         # Data
         for row, disc in enumerate(discrepancies, 2):
-            ws.cell(row=row, column=1, value=disc.deal_id)
-            ws.cell(row=row, column=2, value=disc.deal_name)
-            ws.cell(row=row, column=3, value=disc.discrepancy_type.replace('_', ' ').title())
-            ws.cell(row=row, column=4, value=disc.expected_value)
-            ws.cell(row=row, column=5, value=disc.actual_value)
-            ws.cell(row=row, column=6, value=f"€{disc.impact_eur:,.2f}")
-            ws.cell(row=row, column=7, value=disc.severity.upper())
-            ws.cell(row=row, column=8, value=disc.details)
+            # Handle both object and dict formats
+            if hasattr(disc, 'deal_id'):
+                # Object format
+                ws.cell(row=row, column=1, value=disc.deal_id)
+                ws.cell(row=row, column=2, value=disc.deal_name)
+                ws.cell(row=row, column=3, value=disc.discrepancy_type.replace('_', ' ').title())
+                ws.cell(row=row, column=4, value=disc.expected_value)
+                ws.cell(row=row, column=5, value=disc.actual_value)
+                ws.cell(row=row, column=6, value=f"€{disc.impact_eur:,.2f}")
+                ws.cell(row=row, column=7, value=disc.severity.upper())
+                ws.cell(row=row, column=8, value=disc.details)
+                severity = disc.severity
+                expected_str = disc.expected_value
+                actual_str = disc.actual_value
+            else:
+                # Dict format
+                ws.cell(row=row, column=1, value=disc.get('deal_id', ''))
+                ws.cell(row=row, column=2, value=disc.get('deal_name', ''))
+                ws.cell(row=row, column=3, value=disc.get('discrepancy_type', '').replace('_', ' ').title())
+                ws.cell(row=row, column=4, value=disc.get('expected_value', ''))
+                ws.cell(row=row, column=5, value=disc.get('actual_value', ''))
+                ws.cell(row=row, column=6, value=f"€{disc.get('impact_eur', 0):,.2f}")
+                ws.cell(row=row, column=7, value=disc.get('severity', '').upper())
+                ws.cell(row=row, column=8, value=disc.get('details', ''))
+                severity = disc.get('severity', '')
+                expected_str = disc.get('expected_value', '')
+                actual_str = disc.get('actual_value', '')
+                
+            # Calculate discrepancy percentage
+            discrepancy_pct = self._calculate_discrepancy_percentage(expected_str, actual_str)
+            if discrepancy_pct is not None:
+                ws.cell(row=row, column=9, value=discrepancy_pct / 100)  # Store as decimal
+                ws.cell(row=row, column=9).number_format = '0.00%'
+                ws.cell(row=row, column=9).alignment = Alignment(horizontal='right')
+                
+                # Color code based on discrepancy size
+                cell = ws.cell(row=row, column=9)
+                if discrepancy_pct > 50:
+                    cell.font = Font(color="FF0000", bold=True)  # Red for >50%
+                elif discrepancy_pct > 20:
+                    cell.font = Font(color="FF6600")  # Orange for >20%
+                else:
+                    cell.font = Font(color="000000")  # Black for <=20%
             
             # Color code severity
             severity_cell = ws.cell(row=row, column=7)
-            if disc.severity == 'high':
+            if severity == 'high':
                 severity_cell.fill = PatternFill(start_color="FF6B6B", end_color="FF6B6B", fill_type="solid")
-            elif disc.severity == 'medium':
+            elif severity == 'medium':
                 severity_cell.fill = PatternFill(start_color="FFD93D", end_color="FFD93D", fill_type="solid")
             else:
                 severity_cell.fill = PatternFill(start_color="6BCF7F", end_color="6BCF7F", fill_type="solid")
@@ -179,20 +243,62 @@ class ReportGenerator:
             
         # Data
         for row, match in enumerate(matched_deals, 2):
-            hs_deal = match['hubspot']
-            sc_transactions = match['salescookie']
+            # Handle the new format from reconcile_v3
+            if 'hubspot_deal' in match:
+                hs_deal = match['hubspot_deal']
+                sc_transactions = match['salescookie_transactions']
+            else:
+                # Old format
+                hs_deal = match['hubspot']
+                sc_transactions = match['salescookie']
             
             ws.cell(row=row, column=1, value=hs_deal['hubspot_id'])
             ws.cell(row=row, column=2, value=hs_deal['deal_name'])
-            ws.cell(row=row, column=3, value=hs_deal['close_date'].strftime('%Y-%m-%d') if hs_deal['close_date'] else '')
-            ws.cell(row=row, column=4, value=f"€{hs_deal['commission_amount']:,.2f}")
+            ws.cell(row=row, column=3, value=hs_deal['close_date'].strftime('%Y-%m-%d') if hs_deal.get('close_date') else '')
+            ws.cell(row=row, column=4, value=f"€{hs_deal.get('commission_amount', 0):,.2f}")
             ws.cell(row=row, column=5, value=len(sc_transactions))
-            ws.cell(row=row, column=6, value=f"€{sum(t['commission_amount'] for t in sc_transactions):,.2f}")
+            ws.cell(row=row, column=6, value=f"€{sum(t.get('commission_amount', 0) for t in sc_transactions):,.2f}")
             ws.cell(row=row, column=7, value="✓ Matched")
             
         # Auto-fit columns
         self._autofit_columns(ws)
         
+    def _calculate_discrepancy_percentage(self, expected_str: str, actual_str: str) -> float:
+        """Calculate percentage difference between expected and actual values"""
+        try:
+            expected_value = 0
+            actual_value = 0
+            
+            # For calculation errors, extract the calculated value from "€X × Y% = €Z"
+            if '=' in expected_str and '€' in expected_str:
+                # Get the value after the equals sign
+                parts = expected_str.split('=')
+                if len(parts) > 1:
+                    value_str = parts[1].strip()
+                    # Remove currency symbol and split indicator
+                    value_str = value_str.replace('€', '').replace('(split)', '').strip()
+                    # Convert to float
+                    expected_value = float(value_str.replace(',', ''))
+            
+            # Extract actual value
+            if '€' in actual_str:
+                value_str = actual_str.replace('€', '').strip()
+                actual_value = float(value_str.replace(',', ''))
+                
+            # Calculate percentage difference
+            if expected_value > 0:
+                # Calculate how much the actual is as a percentage of expected
+                actual_as_pct_of_expected = (actual_value / expected_value) * 100
+                # The discrepancy is how far off we are from 100%
+                discrepancy_pct = abs(100 - actual_as_pct_of_expected)
+                return discrepancy_pct
+                
+        except Exception:
+            # For missing deals or other types, return None
+            pass
+            
+        return None
+    
     def _autofit_columns(self, ws):
         """Auto-fit column widths"""
         for column in ws.columns:
@@ -266,8 +372,8 @@ class ReportGenerator:
             if summary['total_discrepancies'] > 0:
                 if 'missing_deal' in summary['discrepancies_by_type']:
                     f.write("1. Investigate missing deals in SalesCookie - ensure all Closed & Won deals are properly synced\n")
-                if 'wrong_commission_amount' in summary['discrepancies_by_type']:
-                    f.write("2. Review commission rate calculations - verify correct rates are applied per deal type\n")
+                if 'wrong_commission_amount' in summary['discrepancies_by_type'] or 'calculation_error' in summary['discrepancies_by_type']:
+                    f.write("2. Review commission calculations - verify that commission = amount × rate\n")
                 if 'missing_quarter_split' in summary['discrepancies_by_type']:
                     f.write("3. Check quarter allocation logic - ensure 50/50 split is properly implemented\n")
                 if 'missing_currency_conversion' in summary['discrepancies_by_type']:
@@ -287,16 +393,29 @@ class ReportGenerator:
             # Convert discrepancies to DataFrame
             data = []
             for disc in results['discrepancies']:
-                data.append({
-                    'Deal ID': disc.deal_id,
-                    'Deal Name': disc.deal_name,
-                    'Discrepancy Type': disc.discrepancy_type,
-                    'Expected Value': disc.expected_value,
-                    'Actual Value': disc.actual_value,
-                    'Impact (EUR)': disc.impact_eur,
-                    'Severity': disc.severity,
-                    'Details': disc.details,
-                })
+                # Handle both object and dict formats
+                if hasattr(disc, 'deal_id'):
+                    data.append({
+                        'Deal ID': disc.deal_id,
+                        'Deal Name': disc.deal_name,
+                        'Discrepancy Type': disc.discrepancy_type,
+                        'Expected Value': disc.expected_value,
+                        'Actual Value': disc.actual_value,
+                        'Impact (EUR)': disc.impact_eur,
+                        'Severity': disc.severity,
+                        'Details': disc.details,
+                    })
+                else:
+                    data.append({
+                        'Deal ID': disc.get('deal_id', ''),
+                        'Deal Name': disc.get('deal_name', ''),
+                        'Discrepancy Type': disc.get('discrepancy_type', ''),
+                        'Expected Value': disc.get('expected_value', ''),
+                        'Actual Value': disc.get('actual_value', ''),
+                        'Impact (EUR)': disc.get('impact_eur', 0),
+                        'Severity': disc.get('severity', ''),
+                        'Details': disc.get('details', ''),
+                    })
                 
             df = pd.DataFrame(data)
             df.to_csv(filepath, index=False, encoding='utf-8')

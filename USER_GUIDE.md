@@ -199,14 +199,21 @@ python3 reconcile_v2.py --verbose \
 - Incomplete data export
 - Using scraped data (lower quality)
 
-### Q: What are CPI/Fix deals?
+### Q: What are CPI/Fixed Price deals?
 
-**A:** These are inflation adjustment deals processed centrally:
-- CPI Increase
-- Fix Increase
-- Indexation deals
+**A:** These are centrally processed deals that don't appear in HubSpot:
+- CPI Increase: Automatic price adjustments based on inflation
+- Fixed Price Increase: Negotiated price increases
+- Indexation deals: Other automatic adjustments
 
-They appear in SalesCookie but not HubSpot.
+They appear in SalesCookie but not HubSpot - this is correct behavior.
+
+### Q: Which HubSpot export should I use?
+
+**A:** Use `tb-deals.csv` format that includes:
+- SalesCookie Unique ID as "Record ID"
+- Enables direct ID matching
+- Standard HubSpot exports don't have this field
 
 ### Q: Why do some PS deals show 50% commission?
 

@@ -1,0 +1,102 @@
+COMMISSION RECONCILIATION SUMMARY
+============================================================
+
+Report Generated: 2025-07-30 21:08:56
+
+OVERALL STATISTICS
+------------------------------
+HubSpot Deals (Closed & Won): 251
+HubSpot Total Amount: €8,698,792.54
+SalesCookie Total Transactions: 183
+  - Centrally Processed (CPI/Fix): 0
+  - Available for Matching: 183
+SalesCookie Total Commission: €291,283.22
+  - Centrally Processed Commission: €0.00
+Matched Deals: 0
+Total Discrepancies: 251
+Total Impact: €439,267.18
+
+DISCREPANCIES BY TYPE
+------------------------------
+Missing Deal: 251 (€439,267.18)
+
+
+HIGH SEVERITY DISCREPANCIES
+------------------------------
+
+PS @ Tieto (Additional PS Support Rcloud 54 MD - 88.560 EUR)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €885.60
+  Details: Closed Won deal worth €88,560.00 not found in SalesCookie
+
+A360B @ Tieto (Missing License - Balance Sheet View)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €0.00
+  Details: Closed Won deal worth €0.00 not found in SalesCookie
+
+PS @ DKB (10MD Support Extension)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €168.00
+  Details: Closed Won deal worth €16,800.00 not found in SalesCookie
+
+A360B @ KfW (Modul WP-Invest Gruppenmeldung)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €2,694.38
+  Details: Closed Won deal worth €38,491.20 not found in SalesCookie
+
+A360B @ d-fine (Test Modules Test System)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €0.00
+  Details: Closed Won deal worth €0.00 not found in SalesCookie
+
+PS @ SSW (7 PT Support x 1.480 EUR)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €103.60
+  Details: Closed Won deal worth €10,360.00 not found in SalesCookie
+
+A360 @ DKB (Benchmarking Portfolio Test Lizenz)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €0.00
+  Details: Closed Won deal worth €0.00 not found in SalesCookie
+
+A360B @ Aktia (EU Taxonomy -  Test Phase)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €0.00
+  Details: Closed Won deal worth €0.00 not found in SalesCookie
+
+A360B @ Lloyds Bank (Diversity Benchmarking + DXUp)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €1,379.84
+  Details: Closed Won deal worth €19,712.00 not found in SalesCookie
+
+A360B @ KfW (Extension Bi-Direktionaler Adapter)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €6,519.73
+  Details: Closed Won deal worth €93,139.00 not found in SalesCookie
+
+... and 241 more high severity discrepancies
+
+
+RECOMMENDATIONS
+------------------------------
+1. Investigate missing deals in SalesCookie - ensure all Closed & Won deals are properly synced

@@ -90,10 +90,8 @@ class ReconciliationEngine:
         for hs_deal in self.hubspot_deals:
             if hs_deal['hubspot_id'] not in matched_ids:
                 # Deal is missing in SalesCookie
-                year = hs_deal['close_date'].year if hs_deal['close_date'] else datetime.now().year
-                
-                # Calculate expected commission
-                expected_commission = self._calculate_expected_commission(hs_deal, year)
+                # We can't know the expected commission without knowing the rate
+                # So we'll use a conservative estimate or flag it differently
                 
                 self.discrepancies.append(Discrepancy(
                     deal_id=hs_deal['hubspot_id'],
@@ -101,44 +99,51 @@ class ReconciliationEngine:
                     discrepancy_type='missing_deal',
                     expected_value=f"Deal in SalesCookie",
                     actual_value="Not found",
-                    impact_eur=expected_commission,
+                    impact_eur=0,  # Can't calculate without knowing the commission rate
                     severity='high',
                     details=f"Closed Won deal worth €{hs_deal['commission_amount']:,.2f} not found in SalesCookie"
                 ))
                 
     def _validate_commissions(self):
-        """Validate commission calculations for matched deals"""
+        """Validate commission calculations for matched deals using SalesCookie rates"""
         for match in self.matched_deals:
             hs_deal = match['hubspot']
             sc_transactions = match['salescookie']
             
-            # Calculate expected commission
-            year = hs_deal['close_date'].year if hs_deal['close_date'] else datetime.now().year
-            expected_commission = self._calculate_expected_commission(hs_deal, year)
-            
-            # Sum actual commissions from SalesCookie
-            actual_commission = sum(t['commission_amount'] for t in sc_transactions)
-            
-            # Check for discrepancy (allow 1 EUR tolerance for rounding)
-            if abs(expected_commission - actual_commission) > 1.0:
-                # Determine the issue
-                if hs_deal['is_ps_deal']:
-                    expected_rate = "1.0%"
-                    actual_rates = [f"{t['commission_rate']*100:.1f}%" for t in sc_transactions]
-                else:
-                    expected_rate = self._get_expected_rate(hs_deal, year)
-                    actual_rates = [f"{t['commission_rate']*100:.1f}%" for t in sc_transactions]
+            # For each SalesCookie transaction, validate the calculation
+            for sc_tx in sc_transactions:
+                sc_amount = sc_tx['commission_amount']
+                sc_rate = sc_tx.get('commission_rate', 0)
+                # Use ACV amount from SalesCookie itself, not HubSpot
+                sc_acv = sc_tx.get('acv_eur', 0)
+                is_split = sc_tx.get('has_split', False)
+                
+                # Skip if no rate or ACV available
+                if sc_rate == 0 or sc_acv == 0:
+                    continue
                     
-                self.discrepancies.append(Discrepancy(
-                    deal_id=hs_deal['hubspot_id'],
-                    deal_name=hs_deal['deal_name'],
-                    discrepancy_type='wrong_commission_amount',
-                    expected_value=f"€{expected_commission:,.2f}",
-                    actual_value=f"€{actual_commission:,.2f}",
-                    impact_eur=abs(expected_commission - actual_commission),
-                    severity='high' if abs(expected_commission - actual_commission) > 100 else 'medium',
-                    details=f"Expected rate: {expected_rate}, Actual rates: {', '.join(actual_rates)}"
-                ))
+                # Calculate what the commission should be based on SC's own ACV and rate
+                expected_based_on_sc_data = sc_acv * sc_rate
+                
+                # For split deals, the commission is divided (usually 50/50)
+                if is_split:
+                    # Count how many transactions we have for this deal
+                    same_deal_count = len([t for t in sc_transactions if t.get('acv_eur') == sc_acv])
+                    if same_deal_count > 1:
+                        expected_based_on_sc_data = expected_based_on_sc_data / same_deal_count
+                
+                # Check if the math is correct (allow 1 EUR tolerance for rounding)
+                if abs(expected_based_on_sc_data - sc_amount) > 1.0:
+                    self.discrepancies.append(Discrepancy(
+                        deal_id=hs_deal['hubspot_id'],
+                        deal_name=hs_deal['deal_name'],
+                        discrepancy_type='calculation_error',
+                        expected_value=f"€{sc_acv:,.2f} × {sc_rate*100:.2f}% = €{expected_based_on_sc_data:,.2f}{' (split)' if is_split else ''}",
+                        actual_value=f"€{sc_amount:,.2f}",
+                        impact_eur=abs(expected_based_on_sc_data - sc_amount),
+                        severity='high' if abs(expected_based_on_sc_data - sc_amount) > 100 else 'medium',
+                        details=f"SalesCookie internal calculation error: ACV × rate ≠ commission{' (split deal)' if is_split else ''}"
+                    ))
                 
     def _validate_quarter_splits(self):
         """Validate quarter allocation for split deals"""
@@ -193,45 +198,6 @@ class ReconciliationEngine:
                         details=f"Deal in {hs_deal['currency']} missing company currency (EUR) amount"
                     ))
                     
-    def _calculate_expected_commission(self, deal: Dict, year: int) -> float:
-        """Calculate expected commission for a deal"""
-        base_amount = deal['commission_amount']
-        
-        if deal['is_ps_deal']:
-            # PS deals get flat 1%
-            return base_amount * 0.01
-        else:
-            # Regular deals - determine type and rate
-            deal_type = self._determine_deal_type(deal)
-            rate = self.config.get_commission_rate(year, deal_type, deal['is_ps_deal'])
-            
-            return base_amount * rate
-            
-    def _determine_deal_type(self, deal: Dict) -> str:
-        """Determine deal type for commission calculation"""
-        # Check product name and types of ACV
-        product = str(deal.get('product_name', '')).lower()
-        acv_types = str(deal.get('types_of_acv', '')).lower()
-        deployment = str(deal.get('deployment_type', '')).lower()
-        
-        # Priority order for type detection
-        if 'indexation' in product or 'parameter' in product:
-            return 'indexations_parameter'
-        elif 'managed' in acv_types or 'managed' in product:
-            if 'public' in deployment or 'rcloud' in deployment:
-                return 'managed_services_public'
-            else:
-                return 'managed_services_private'
-        elif 'professional services' in acv_types and not deal['is_ps_deal']:
-            return 'recurring_professional_services'
-        else:
-            return 'software'
-            
-    def _get_expected_rate(self, deal: Dict, year: int) -> str:
-        """Get expected commission rate as string"""
-        deal_type = self._determine_deal_type(deal)
-        rate = self.config.get_commission_rate(year, deal_type, deal['is_ps_deal'])
-        return f"{rate*100:.1f}%"
         
     def _generate_summary(self) -> Dict:
         """Generate reconciliation summary"""

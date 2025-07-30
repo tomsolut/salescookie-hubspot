@@ -1,0 +1,100 @@
+COMMISSION RECONCILIATION SUMMARY
+================================================================================
+
+Report Date: 2025-07-30 18:05
+
+OVERALL STATISTICS
+----------------------------------------
+HubSpot Deals (Closed & Won): 10
+HubSpot Total Amount: €267,062.20
+SalesCookie Transactions: 0
+  - Regular: -23
+  - Withholding: 0
+  - Forecast: 23
+  - Split: 0
+Matched Deals: 0
+Centrally Processed: 16
+Total Discrepancies: 10
+Total Impact: €11,751.15
+
+WITHHOLDING SUMMARY
+----------------------------------------
+Total Paid (50%): €0.00
+Total Withheld: €0.00
+Full Commission: €0.00
+
+FORECAST SUMMARY
+----------------------------------------
+Total Forecast: €37,623.15
+Total Kickers: €18.30
+Deals with Kickers: 17
+
+TOP DISCREPANCIES
+----------------------------------------
+
+A360B @ KfW (Extension Bi-Direktionaler Adapter)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €6,519.73
+
+A360B @ KfW (Modul WP-Invest Gruppenmeldung)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €2,694.38
+
+A360B @ Lloyds Bank (Diversity Benchmarking + DXUp)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €1,379.84
+
+PS @ Tieto (Additional PS Support Rcloud 54 MD - 88.560 EUR)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €885.60
+
+PS @ DKB (10MD Support Extension)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €168.00
+
+PS @ SSW (7 PT Support x 1.480 EUR)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €103.60
+
+A360B @ Tieto (Missing License - Balance Sheet View)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €0.00
+
+A360B @ d-fine (Test Modules Test System)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €0.00
+
+A360 @ DKB (Benchmarking Portfolio Test Lizenz)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €0.00
+
+A360B @ Aktia (EU Taxonomy -  Test Phase)
+  Type: missing_deal
+  Expected: Deal in SalesCookie
+  Actual: Not found
+  Impact: €0.00
+
+
+RECOMMENDATIONS
+----------------------------------------
+1. Review and correct missing deals in SalesCookie
+2. Verify commission calculations for matched deals with discrepancies
+4. Verify CPI/Fix deals are properly excluded from HubSpot
